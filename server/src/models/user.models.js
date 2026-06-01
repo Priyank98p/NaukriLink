@@ -38,6 +38,10 @@ const userSchema = new Schema(
       enum: ["active", "suspended", "deleted"],
       default: "active",
     },
+    isVerified:{
+      type: Boolean,
+      default: false
+    },
     refreshToken: {
       type: String,
     },
@@ -46,7 +50,7 @@ const userSchema = new Schema(
 );
 
 userSchema.pre("save", async function () {
-  if (this.isModified("password")) return;
+  if (!this.isModified("password")) return;
 
   this.password = await bcrypt.hash(this.password, 10);
 });
@@ -77,7 +81,7 @@ userSchema.methods.generateRefreshToken = async function () {
     },
     process.env.REFRESH_TOKEN_SECRET,
     {
-      expiresIn: REFRESH_TOKEN_EXPIRY,
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
     },
   );
 };
