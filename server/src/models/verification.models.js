@@ -22,7 +22,7 @@ const verificationSchema = new Schema(
     expiresAt: {
       type: Date,
       required: true,
-      index: { expires: 0 },
+      index: { expires: 600 },
     },
   },
   { timestamps: true },

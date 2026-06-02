@@ -57,4 +57,28 @@ const sendWelcomeEmail = async (email, username) => {
   }
 };
 
-export { sendVerificationEmail, sendWelcomeEmail };
+const resetPasswordEmail = async (email, resetUrl) => {
+  try {
+    const resend = getResendClient();
+    const response = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL,
+      to: email,
+      subject: "Reset your password",
+      html: `
+       <div style="font-family:Arial sans-serif; padding: 20px; color: #333;">
+          <h2>Password Reset Request</h2>
+          <p>You requested a password reset for your NaukriLink account. Click the button below to reset it:</p>
+          <a href="${resetUrl}" style="display: inline-block; padding: 10px 20px; background-color: #4F46E5; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
+          <p>If you did not request this, please ignore this email.</p>
+          <p>This link will expire in 10 minutes.</p>
+        </div>
+      `,
+    });
+  } catch (error) {
+
+    console.error("EMAIL_ERROR:", error);
+    throw new ApiError(500, "Email could not be sent. Please try again later.");
+  }
+};
+
+export { sendVerificationEmail, sendWelcomeEmail, resetPasswordEmail };
