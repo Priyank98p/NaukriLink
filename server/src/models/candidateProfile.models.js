@@ -8,6 +8,12 @@ const candidateProfileSchema = new Schema(
       unique: true,
       required: true,
     },
+    avatar: {
+      type: String,
+      default:
+        "https://res.cloudinary.com/dolvuw9vy/image/upload/v1777029295/default-profile-picture-avatar-photo-placeholder-vector-illustration-default-profile-picture-avatar-photo-placeholder-vector-189495158_kgefvq.webp",
+      trim: true,
+    },
     headline: {
       type: String,
       required: true,
@@ -41,7 +47,6 @@ const candidateProfileSchema = new Schema(
     },
     resumeUrl: {
       type: String,
-      required: true,
       trim: true,
     },
     profileCompletion: {
@@ -49,6 +54,10 @@ const candidateProfileSchema = new Schema(
       min: 0,
       max: 100,
       default: 0,
+    },
+    personalWebsite: {
+      type: String,
+      trim: true,
     },
     socialLinks: {
       github: String,

@@ -40,9 +40,15 @@ const deleteFromCloudinary = async (url) => {
     const parts = url.split("/upload/");
     if (parts.length < 2) return null;
 
-    const withVersion = parts[1];
-    const withoutVersion = withVersion.replace(/^v\d+\//, "");
-    const publicId = withoutVersion.replace(/\.[^/.]+$/, "");
+    // Extract the path after /upload/ and remove the version prefix (e.g., v1777029295/)
+    const urlPath = parts[1];
+    const withoutVersion = urlPath.replace(/^v\d+\//, "");
+
+    // Remove file extension to get public ID
+    const publicId = withoutVersion.substring(
+      0,
+      withoutVersion.lastIndexOf("."),
+    );
 
     const result = await cloudinary.uploader.destroy(publicId);
     console.log("Cloudinary delete result:", result);
