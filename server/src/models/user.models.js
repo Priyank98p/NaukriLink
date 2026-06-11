@@ -26,7 +26,6 @@ const userSchema = new Schema(
     password: {
       type: String,
       required: [true, "Password is required"],
-      select: false,
     },
     role: {
       type: String,
@@ -38,12 +37,19 @@ const userSchema = new Schema(
       enum: ["active", "suspended", "deleted"],
       default: "active",
     },
-    isVerified:{
+    isVerified: {
       type: Boolean,
-      default: false
+      default: false,
     },
     refreshToken: {
       type: String,
+    },
+    resetPasswordToken: {
+      type: String,
+    },
+    resetPasswordTokenExpiry: {
+      type: Date,
+      index: { expires: 600 },
     },
   },
   { timestamps: true },
@@ -84,5 +90,18 @@ userSchema.methods.generateRefreshToken = async function () {
       expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
     },
   );
+};
+
+import crypto from "crypto";
+userSchema.methods.generateResetPasswordToken = function () {
+  const resetToken = crypto.randomBytes(25).toString("hex");
+
+  this.resetPasswordToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  this.resetPasswordTokenExpiry = Date.now() + 10 * 60 * 1000;
+  return resetToken;
 };
 export const User = mongoose.model("User", userSchema);

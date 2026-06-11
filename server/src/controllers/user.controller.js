@@ -3,16 +3,21 @@ import { Verification } from "../models/verification.models.js";
 import {
   sendVerificationEmail,
   sendWelcomeEmail,
+  resetPasswordEmail,
 } from "../services/sendEmail.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import bcrypt from "bcrypt";
-import crypto from "crypto"
+import crypto from "crypto";
 
 const OTP_EXPIRY_MINUTES = 10;
 
 const generateOtp = () => crypto.randomInt(100000, 999999).toString();
+
+const getResetPasswordToken = (token) => {
+  return crypto.createHash("sha256").update(token).digest("hex");
+};
 
 const sendUserVerificationOtp = async (user) => {
   const otp = generateOtp();
@@ -27,7 +32,7 @@ const sendUserVerificationOtp = async (user) => {
       otp: hashedOtp,
       expiresAt,
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
   );
 
   await sendVerificationEmail(user.email, otp);
@@ -146,11 +151,7 @@ const emailVerification = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(
-      new ApiResponse(
-        200,
-        { isVerified: true },
-        "Email verified successfully",
-      ),
+      new ApiResponse(200, { isVerified: true }, "Email verified successfully"),
     );
 });
 
@@ -184,9 +185,7 @@ const userLogin = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All fields are required");
   }
 
-  const user = await User.findOne({ email: email.toLowerCase().trim() }).select(
-    "-password -refreshToken",
-  );
+  const user = await User.findOne({ email: email.toLowerCase().trim() });
   if (!user) {
     throw new ApiError(400, "User doesn't exist");
   }
@@ -220,6 +219,60 @@ const userLogin = asyncHandler(async (req, res) => {
     );
 });
 
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new ApiError(400, "Email is required");
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase().trim() });
+  if (!user) {
+    throw new ApiError(404, "User doesn't exist");
+  }
+
+  const resetToken = user.generateResetPasswordToken();
+  await user.save({ validateBeforeSave: false });
+
+  const frontendUrl = process.env.FRONTEND_URL;
+  const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+
+  await resetPasswordEmail(email, resetUrl);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(201, {}, "Password reset link sent successfully"));
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  const { token } = req.params;
+
+  if (!password || password.length < 8) {
+    throw new ApiError(402, "Password must be at least 8 character long");
+  }
+
+  const resetToken = getResetPasswordToken(token);
+
+  const user = await User.findOne({
+    resetPasswordToken: resetToken,
+    resetPasswordTokenExpiry: { $gt: Date.now() },
+  });
+
+  if (!user) {
+    throw new ApiError(500, "Invalid or Token expired");
+  }
+
+  user.password = password;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordTokenExpiry = undefined;
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(201, {}, "Password reset successfull"));
+});
+
 const userLogout = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user?._id,
@@ -251,4 +304,6 @@ export {
   userLogout,
   emailVerification,
   resendVerificationOtp,
+  forgotPassword,
+  resetPassword,
 };
