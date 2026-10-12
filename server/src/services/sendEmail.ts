@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { ApiError } from "../utils/ApiError.js";
 
 const getResendClient = () => {
   if (!process.env.RESEND_API_KEY) {
@@ -8,11 +9,22 @@ const getResendClient = () => {
   return new Resend(process.env.RESEND_API_KEY);
 };
 
-const sendVerificationEmail = async (email, otp) => {
+const getSenderEmail = (): string => {
+  const senderEmail = process.env.RESEND_FROM_EMAIL;
+  if (!senderEmail) {
+    throw new Error("RESEND_FROM_EMAIL is required to send emails");
+  }
+  return senderEmail;
+};
+
+const sendVerificationEmail = async (
+  email: string,
+  otp: string,
+): Promise<void> => {
   try {
     const resend = getResendClient();
-    const response = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL,
+    await resend.emails.send({
+      from: getSenderEmail(),
       to: email,
       subject: "Verify Your Email - OTP",
       html: `
@@ -27,19 +39,20 @@ const sendVerificationEmail = async (email, otp) => {
         </div>
       `,
     });
-
-    return response;
   } catch (error) {
     console.error("Email send error:", error);
     throw new Error("Failed to send OTP email");
   }
 };
 
-const sendWelcomeEmail = async (email, username) => {
+const sendWelcomeEmail = async (
+  email: string,
+  username: string,
+): Promise<void> => {
   try {
     const resend = getResendClient();
-    const response = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL,
+    await resend.emails.send({
+      from: getSenderEmail(),
       to: email,
       subject: "Welcome to NaukriLink",
       html: `
@@ -57,11 +70,14 @@ const sendWelcomeEmail = async (email, username) => {
   }
 };
 
-const resetPasswordEmail = async (email, resetUrl) => {
+const resetPasswordEmail = async (
+  email: string,
+  resetUrl: string,
+): Promise<void> => {
   try {
     const resend = getResendClient();
-    const response = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL,
+    await resend.emails.send({
+      from: getSenderEmail(),
       to: email,
       subject: "Reset your password",
       html: `

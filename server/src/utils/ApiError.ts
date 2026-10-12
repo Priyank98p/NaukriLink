@@ -1,8 +1,13 @@
 class ApiError extends Error {
+  statusCode: number;
+  errors: unknown[];
+  data: null;
+  success: boolean;
+
   constructor(
-    statusCode,
+    statusCode: number,
     message = "Something went wrong",
-    errors = [],
+    errors: unknown[] = [],
     stack = "",
   ) {
     super(message);

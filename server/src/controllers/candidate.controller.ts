@@ -7,11 +7,33 @@ import {
   deleteFromCloudinary,
   uploadOnCloudinary,
 } from "../services/Cloudinary.js";
+import {
+  getOptionalNumber,
+  getOptionalString,
+  getOptionalStringArray,
+  getRequestBody,
+} from "../utils/requestBody.js";
 
 const updatePersonalInfo = asyncHandler(async (req, res) => {
-  const { fullName, headline, bio, experience, education, personalWebsite } =
-    req.body;
+  const body = getRequestBody(req.body);
+  const fullName = getOptionalString(body, "fullName");
+  const headline = getOptionalString(body, "headline");
+  const bio = getOptionalString(body, "bio");
+  const experience = getOptionalStringArray(body, "experience");
+  const education = getOptionalStringArray(body, "education");
+  const personalWebsite = getOptionalString(body, "personalWebsite");
+  const nationality = getOptionalString(body, "nationality");
+  const dateOfBirth = getOptionalString(body, "dateOfBirth");
+  const gender = getOptionalString(body, "gender");
+  const phone = getOptionalNumber(body, "phone");
+  const address = getOptionalString(body, "address");
+  const skills = getOptionalStringArray(body, "skills");
+  const projects = getOptionalStringArray(body, "projects");
   const currentUserId = req.user?._id;
+
+  if (!currentUserId) {
+    throw new ApiError(401, "Unauthorized access");
+  }
 
   if (
     !fullName &&
@@ -19,7 +41,14 @@ const updatePersonalInfo = asyncHandler(async (req, res) => {
     !experience &&
     !bio &&
     !personalWebsite &&
-    !headline
+    !headline &&
+    !nationality &&
+    !dateOfBirth &&
+    !gender &&
+    !phone &&
+    !address &&
+    !skills &&
+    !projects
   ) {
     throw new ApiError(400, "At least one field is required");
   }
@@ -37,13 +66,26 @@ const updatePersonalInfo = asyncHandler(async (req, res) => {
     await currentUser.save({ validateBeforeSave: false });
   }
 
-  const updateFields = {};
+  const updateFields: Record<string, unknown> = {};
 
   if (headline) updateFields.headline = headline;
   if (bio) updateFields.bio = bio;
   if (experience) updateFields.experience = experience;
   if (education) updateFields.education = education;
   if (personalWebsite) updateFields.personalWebsite = personalWebsite;
+  if (nationality) updateFields.nationality = nationality;
+  if (dateOfBirth) {
+    const parsedDateOfBirth = new Date(dateOfBirth);
+    if (Number.isNaN(parsedDateOfBirth.getTime())) {
+      throw new ApiError(400, "dateOfBirth must be a valid date");
+    }
+    updateFields.dateOfBirth = parsedDateOfBirth;
+  }
+  if (gender) updateFields.gender = gender;
+  if (phone) updateFields.phone = phone;
+  if (address) updateFields.address = address;
+  if (skills) updateFields.skills = skills;
+  if (projects) updateFields.projects = projects;
 
   const avatarLocalPath = req.file?.path;
   const existingProfile = await CandidateProfile.findOne({
@@ -94,6 +136,9 @@ const updatePersonalInfo = asyncHandler(async (req, res) => {
 const addOrUpdateResume = asyncHandler(async (req, res) => {
   const resumeLocalPath = req.file?.path;
   const currentUserId = req.user?._id;
+  if (!currentUserId) {
+    throw new ApiError(401, "Unauthorized access");
+  }
   if (!resumeLocalPath) {
     throw new ApiError(400, "Resume is required");
   }

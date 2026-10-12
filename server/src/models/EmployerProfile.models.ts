@@ -15,11 +15,19 @@ const employerProfileSchema = new Schema(
     about: {
       type: String,
     },
-    logoUrl: {
+    logo: {
       type: String,
+    },
+    banner:{
+      type:String
     },
     organizationType: {
       type: String,
+      enum: ["Public", "Private", "Non-Profit / NGO", "Government",]
+    },
+    industryType:{
+      type: String,
+      enum:["Information Technology & Software", "Healthcare & Medical", "Finance & Banking", "Education & Training", "Manufacturing & Engineering", ""]
     },
     teamSize: {
       type: Number,

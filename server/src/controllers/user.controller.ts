@@ -10,16 +10,22 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import type { UserDocument } from "../models/user.models.js";
+import {
+  getOptionalString,
+  getRequestBody,
+  getRequiredString,
+} from "../utils/requestBody.js";
 
 const OTP_EXPIRY_MINUTES = 10;
 
 const generateOtp = () => crypto.randomInt(100000, 999999).toString();
 
-const getResetPasswordToken = (token) => {
+const getResetPasswordToken = (token: string): string => {
   return crypto.createHash("sha256").update(token).digest("hex");
 };
 
-const sendUserVerificationOtp = async (user) => {
+const sendUserVerificationOtp = async (user: UserDocument): Promise<void> => {
   const otp = generateOtp();
   const hashedOtp = await bcrypt.hash(otp, 10);
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
@@ -38,11 +44,17 @@ const sendUserVerificationOtp = async (user) => {
   await sendVerificationEmail(user.email, otp);
 };
 
-const generateAccessAndRefreshTokens = async (userId) => {
+const generateAccessAndRefreshTokens = async (
+  userId: UserDocument["_id"],
+) => {
   try {
     const user = await User.findById(userId);
-    const accessToken = await user.generateAccessToken();
-    const refreshToken = await user.generateRefreshToken();
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    const accessToken = user.generateAccessToken();
+    const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
@@ -53,10 +65,18 @@ const generateAccessAndRefreshTokens = async (userId) => {
   }
 };
 const registerUser = asyncHandler(async (req, res) => {
-  const { fullName, username, email, password, role } = req.body;
-
-  if (!fullName || !username || !email || !password) {
-    throw new ApiError(400, "All fields are required");
+  const body = getRequestBody(req.body);
+  const fullName = getRequiredString(body, "fullName");
+  const username = getRequiredString(body, "username");
+  const email = getRequiredString(body, "email");
+  const password = getRequiredString(body, "password");
+  const roleValue = getOptionalString(body, "role");
+  const roles = ["candidate", "employer", "admin"] as const;
+  const role = roleValue
+    ? roles.find((allowedRole) => allowedRole === roleValue)
+    : undefined;
+  if (roleValue && !role) {
+    throw new ApiError(400, "Invalid user role");
   }
 
   const normalizedEmail = email.toLowerCase().trim();
@@ -75,7 +95,7 @@ const registerUser = asyncHandler(async (req, res) => {
     username: normalizedUsername,
     email: normalizedEmail,
     password,
-    role,
+    role: role ?? "candidate",
     isVerified: false,
   });
 
@@ -100,10 +120,9 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 const emailVerification = asyncHandler(async (req, res) => {
-  const { email, otp } = req.body;
-  if (!email || !otp) {
-    throw new ApiError(400, "Email and OTP are required");
-  }
+  const body = getRequestBody(req.body);
+  const email = getRequiredString(body, "email");
+  const otp = getRequiredString(body, "otp");
 
   const normalizedEmail = email.toLowerCase().trim();
   const user = await User.findOne({ email: normalizedEmail });
@@ -156,10 +175,8 @@ const emailVerification = asyncHandler(async (req, res) => {
 });
 
 const resendVerificationOtp = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  if (!email) {
-    throw new ApiError(400, "Email is required");
-  }
+  const body = getRequestBody(req.body);
+  const email = getRequiredString(body, "email");
 
   const user = await User.findOne({ email: email.toLowerCase().trim() });
 
@@ -179,11 +196,9 @@ const resendVerificationOtp = asyncHandler(async (req, res) => {
 });
 
 const userLogin = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    throw new ApiError(400, "All fields are required");
-  }
+  const body = getRequestBody(req.body);
+  const email = getRequiredString(body, "email");
+  const password = getRequiredString(body, "password");
 
   const user = await User.findOne({ email: email.toLowerCase().trim() });
   if (!user) {
@@ -208,7 +223,7 @@ const userLogin = asyncHandler(async (req, res) => {
     httpOnly: true,
     secure: true,
     sameSite: "none",
-  };
+  } as const;
 
   return res
     .status(200)
@@ -220,11 +235,8 @@ const userLogin = asyncHandler(async (req, res) => {
 });
 
 const forgotPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    throw new ApiError(400, "Email is required");
-  }
+  const body = getRequestBody(req.body);
+  const email = getRequiredString(body, "email");
 
   const user = await User.findOne({ email: email.toLowerCase().trim() });
   if (!user) {
@@ -245,8 +257,13 @@ const forgotPassword = asyncHandler(async (req, res) => {
 });
 
 const resetPassword = asyncHandler(async (req, res) => {
-  const { password } = req.body;
+  const body = getRequestBody(req.body);
+  const password = getRequiredString(body, "password");
   const { token } = req.params;
+
+  if (typeof token !== "string") {
+    throw new ApiError(400, "Invalid reset token");
+  }
 
   if (!password || password.length < 8) {
     throw new ApiError(402, "Password must be at least 8 character long");
@@ -290,7 +307,7 @@ const userLogout = asyncHandler(async (req, res) => {
     httpOnly: true,
     secure: true,
     sameSite: "none",
-  };
+  } as const;
 
   return res
     .status(200)

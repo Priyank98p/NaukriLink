@@ -1,22 +1,26 @@
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 import dotenv from "dotenv";
+import type { UploadApiResponse } from "cloudinary";
+import { getRequiredEnv } from "../utils/env.js";
 
 dotenv.config({
   path: "./.env",
 });
 
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: getRequiredEnv("CLOUDINARY_CLOUD_NAME"),
+  api_key: getRequiredEnv("CLOUDINARY_API_KEY"),
+  api_secret: getRequiredEnv("CLOUDINARY_API_SECRET"),
   secure: true,
 });
 
-const uploadOnCloudinary = async (localPath) => {
-  try {
-    if (!localPath) return null;
+const uploadOnCloudinary = async (
+  localPath: string | undefined,
+): Promise<UploadApiResponse | null> => {
+  if (!localPath) return null;
 
+  try {
     const response = await cloudinary.uploader.upload(localPath, {
       resource_type: "auto",
     });
@@ -33,7 +37,7 @@ const uploadOnCloudinary = async (localPath) => {
   }
 };
 
-const deleteFromCloudinary = async (url) => {
+const deleteFromCloudinary = async (url: string | undefined) => {
   try {
     if (!url || !url.includes("cloudinary.com")) return null;
 
@@ -41,7 +45,8 @@ const deleteFromCloudinary = async (url) => {
     if (parts.length < 2) return null;
 
     // Extract the path after /upload/ and remove the version prefix (e.g., v1777029295/)
-    const urlPath = parts[1];
+    const urlPath = parts.at(1);
+    if (!urlPath) return null;
     const withoutVersion = urlPath.replace(/^v\d+\//, "");
 
     // Remove file extension to get public ID

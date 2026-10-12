@@ -26,7 +26,7 @@ const candidateProfileSchema = new Schema(
       type: Number,
       required: true,
     },
-    location: {
+    address: {
       type: String,
       required: true,
     },
@@ -37,6 +37,17 @@ const candidateProfileSchema = new Schema(
     education: {
       type: [String],
       required: true,
+    },
+    nationality:{
+      type:String,
+      trim:true
+    },
+    dateOfBirth:{
+      type:Date,
+    },
+    gender:{
+      type:String,
+      enum:["Male","Female","Other"]
     },
     experience: {
       type: [String],
