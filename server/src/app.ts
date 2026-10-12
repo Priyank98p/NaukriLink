@@ -1,6 +1,7 @@
-import express from "express";
+import express, { ErrorRequestHandler } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { ApiError } from "./utils/ApiError.js";
 import userRouter from "./routes/user.routes.js";
 import candidateRouter from "./routes/candidate.routes.js"
 
@@ -22,16 +23,20 @@ app.use(cookieParser());
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/candidates", candidateRouter)
 
-app.use((err, req, res, next) => {
-  const statusCode = err.statusCode || 500;
+const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
+  const statusCode =
+    error instanceof ApiError ? error.statusCode : 500;
 
   return res.status(statusCode).json({
     statusCode,
-    data: err.data || null,
-    message: err.message || "Internal server error",
+    data: error instanceof ApiError ? error.data : null,
+    message:
+      error instanceof Error ? error.message : "Internal server error",
     success: false,
-    errors: err.errors || [],
+    errors: error instanceof ApiError ? error.errors : [],
   });
-});
+};
+
+app.use(errorHandler);
 
 export { app };
